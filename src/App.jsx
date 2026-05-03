@@ -271,8 +271,6 @@ function App() {
           
           return (
             <div key={worker.id} className={`worker-card ${!isTimerRunning ? 'disabled' : ''} ${isLeader && isTimerRunning ? 'is-leader' : ''} ${isLast && isTimerRunning ? 'is-last' : ''}`} onClick={(e) => incrementCount(worker.id, e)}>
-              <button className="delete-btn" onClick={(e) => removeWorker(worker.id, e)} aria-label="Eliminar" title="Eliminar trabajador">×</button>
-              
               <div className="worker-info">
                   <span className="worker-name">
                     {worker.name} 
@@ -292,6 +290,7 @@ function App() {
               <div className="actions">
                  <span className="hint">Click para sumar 1</span>
                  <button className="decrement-btn" onClick={(e) => decrementCount(worker.id, e)} title="Restar 1 al contador">Restar</button>
+                 <button className="remove-btn" onClick={(e) => removeWorker(worker.id, e)} title="Eliminar trabajador">Eliminar</button>
               </div>
             </div>
           )
