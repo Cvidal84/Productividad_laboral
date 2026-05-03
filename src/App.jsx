@@ -15,9 +15,19 @@ function App() {
   const [newName, setNewName] = useState('');
 
   // --- Estados del Cronómetro e Informes ---
-  const [isTimerRunning, setIsTimerRunning] = useState(false);
-  const [timerSeconds, setTimerSeconds] = useState(0);
-  const [sessionClicks, setSessionClicks] = useState({});
+  const [timerState, setTimerState] = useState(() => {
+    const saved = localStorage.getItem('timerState');
+    return saved ? JSON.parse(saved) : {
+      isTimerRunning: false,
+      timerSeconds: 0,
+      timerStartTime: null,
+      sessionClicks: {}
+    };
+  });
+
+  // Desestructuramos para facilidad de uso, pero actualizaremos vía setTimerState
+  const { isTimerRunning, timerSeconds, timerStartTime, sessionClicks } = timerState;
+
   const [reports, setReports] = useState(() => {
     const saved = localStorage.getItem('reports');
     return saved ? JSON.parse(saved) : [];
@@ -36,18 +46,31 @@ function App() {
     localStorage.setItem('reports', JSON.stringify(reports));
   }, [reports]);
 
+  useEffect(() => {
+    localStorage.setItem('timerState', JSON.stringify(timerState));
+  }, [timerState]);
+
   // --- Efecto del Cronómetro ---
   useEffect(() => {
     let interval = null;
-    if (isTimerRunning) {
+    if (isTimerRunning && timerStartTime) {
+      // Actualización inmediata al montar o cambiar estado
+      const now = Date.now();
+      setTimerState(prev => ({
+        ...prev,
+        timerSeconds: Math.floor((now - prev.timerStartTime) / 1000)
+      }));
+
       interval = setInterval(() => {
-        setTimerSeconds(s => s + 1);
+        const now = Date.now();
+        setTimerState(prev => ({
+          ...prev,
+          timerSeconds: Math.floor((now - prev.timerStartTime) / 1000)
+        }));
       }, 1000);
-    } else {
-      clearInterval(interval);
     }
     return () => clearInterval(interval);
-  }, [isTimerRunning]);
+  }, [isTimerRunning, timerStartTime]);
 
   const formatTime = (totalSeconds) => {
     const h = Math.floor(totalSeconds / 3600);
@@ -82,9 +105,12 @@ function App() {
     ));
     
     if (isTimerRunning) {
-      setSessionClicks(prev => ({
+      setTimerState(prev => ({
         ...prev,
-        [id]: (prev[id] || 0) + 1
+        sessionClicks: {
+          ...prev.sessionClicks,
+          [id]: (prev.sessionClicks[id] || 0) + 1
+        }
       }));
     }
 
@@ -113,9 +139,12 @@ function App() {
     ));
     
     if (isTimerRunning) {
-      setSessionClicks(prev => ({
+      setTimerState(prev => ({
         ...prev,
-        [id]: Math.max(0, (prev[id] || 0) - 1)
+        sessionClicks: {
+          ...prev.sessionClicks,
+          [id]: Math.max(0, (prev.sessionClicks[id] || 0) - 1)
+        }
       }));
     }
   };
@@ -129,13 +158,24 @@ function App() {
 
   // --- Lógica del Cronómetro ---
   const handleStartTimer = () => {
-    if (timerSeconds === 0 && !isTimerRunning) {
-        setSessionClicks({}); // Resetear clicks de sesión si es nueva
-    }
-    setIsTimerRunning(true);
+    const now = Date.now();
+    const startTime = now - (timerSeconds * 1000);
+    
+    setTimerState(prev => ({
+        ...prev,
+        isTimerRunning: true,
+        timerStartTime: startTime,
+        sessionClicks: timerSeconds === 0 ? {} : prev.sessionClicks
+    }));
   };
   
-  const handlePauseTimer = () => setIsTimerRunning(false);
+  const handlePauseTimer = () => {
+    setTimerState(prev => ({
+        ...prev,
+        isTimerRunning: false,
+        timerStartTime: null
+    }));
+  };
   
   const handleStopTimer = () => {
     if (timerSeconds === 0) return; // Evitar reportes vacíos
@@ -164,8 +204,13 @@ function App() {
     setCurrentReport(report);
     setShowReportModal(true);
     
-    setTimerSeconds(0);
-    setSessionClicks({});
+    setTimerState(prev => ({
+        ...prev,
+        isTimerRunning: false,
+        timerSeconds: 0,
+        timerStartTime: null,
+        sessionClicks: {}
+    }));
   };
 
   const deleteReport = (id) => {
